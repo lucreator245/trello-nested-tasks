@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Nested Tasks</title>
+  <title>Checklist</title>
 
   <style>
     :root {
@@ -10,7 +10,6 @@
 
       --background: #ffffff;
       --surface: #f4f5f7;
-      --surface-hover: #ebecf0;
       --input-background: #ffffff;
       --border: #dfe1e6;
       --text: #172b4d;
@@ -43,24 +42,57 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
 
-    h3 {
-      margin: 0 0 8px;
-      color: var(--text);
-      font-size: 16px;
-      line-height: 20px;
-    }
-
     #status {
-      min-height: 18px;
-      margin: 0 0 10px;
+      min-height: 0;
+      margin: 0;
       color: var(--muted);
       font-size: 13px;
       line-height: 18px;
     }
 
+    #status:empty {
+      display: none;
+    }
+
     #status.error {
+      display: block;
+      margin: 0 0 10px;
       color: var(--danger);
       font-weight: 600;
+    }
+
+    .checklist-title {
+      display: block;
+      width: 100%;
+      min-height: 34px;
+      margin: 0 0 10px;
+      resize: none;
+      overflow: hidden;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 5px 6px;
+      background: transparent;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 20px;
+      font-family: inherit;
+    }
+
+    .checklist-title:hover,
+    .checklist-title:focus {
+      border-color: var(--border);
+      background: var(--input-background);
+      outline: none;
+    }
+
+    .checklist-title:focus {
+      border-color: var(--primary);
+      outline: 2px solid color-mix(
+        in srgb,
+        var(--primary) 25%,
+        transparent
+      );
     }
 
     .progress {
@@ -254,7 +286,6 @@
 
         --background: #1d2125;
         --surface: #22272b;
-        --surface-hover: #2c333a;
         --input-background: #22272b;
         --border: #454f59;
         --text: #b6c2cf;
@@ -272,10 +303,17 @@
 </head>
 
 <body>
-  <h3>Nested Tasks</h3>
-  <p id="status">Loading…</p>
+  <p id="status"></p>
 
-  <div class="progress" aria-label="Nested task progress">
+  <textarea
+    id="checklist-title"
+    class="checklist-title"
+    rows="1"
+    aria-label="Checklist name"
+    title="Click to rename this checklist"
+  >Checklist</textarea>
+
+  <div class="progress" aria-label="Checklist progress">
     <div class="progress-header">
       <span id="progress-text">Progress: 0 / 0 · 0%</span>
     </div>
@@ -299,6 +337,7 @@
     const trello = window.TrelloPowerUp.iframe();
 
     const statusElement = document.getElementById('status');
+    const checklistTitle = document.getElementById('checklist-title');
     const tasksElement = document.getElementById('tasks');
     const addTaskButton = document.getElementById('add-task');
     const progressText = document.getElementById('progress-text');
@@ -306,6 +345,7 @@
 
     let data = {
       version: 1,
+      checklistName: 'Checklist',
       tasks: []
     };
 
@@ -353,6 +393,11 @@
       return ids;
     }
 
+    function resizeTextArea(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+
     function updateProgress() {
       const total = data.tasks.length;
 
@@ -375,11 +420,6 @@
       );
     }
 
-    function resizeTextArea(textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    }
-
     async function resizeIframe() {
       try {
         await trello.sizeTo(document.body);
@@ -390,8 +430,6 @@
 
     async function saveData() {
       try {
-        setStatus('Saving…');
-
         await trello.set(
           'card',
           'private',
@@ -399,10 +437,9 @@
           data
         );
 
-        setStatus('Saved.');
         await resizeIframe();
       } catch (error) {
-        console.error('Could not save nested tasks:', error);
+        console.error('Could not save checklist:', error);
         setStatus(`Save failed: ${error.message}`, true);
       }
     }
@@ -552,7 +589,7 @@
       updateProgress();
 
       const rootTasks = getChildren(null);
-      
+
       for (const task of rootTasks) {
         tasksElement.appendChild(createTaskElement(task, 0));
       }
@@ -562,8 +599,6 @@
 
     async function start() {
       try {
-        setStatus('Loading…');
-
         const storedData = await trello.get(
           'card',
           'private',
@@ -575,11 +610,49 @@
           typeof storedData === 'object' &&
           Array.isArray(storedData.tasks)
         ) {
-          data = storedData;
+          data = {
+            version: storedData.version || 1,
+            checklistName: storedData.checklistName || 'Checklist',
+            tasks: storedData.tasks
+          };
         }
 
+        checklistTitle.value = data.checklistName;
+        resizeTextArea(checklistTitle);
+
+        checklistTitle.addEventListener('input', () => {
+          resizeTextArea(checklistTitle);
+          resizeIframe();
+        });
+
+        checklistTitle.addEventListener('change', async () => {
+          const newName = checklistTitle.value.trim();
+
+          if (!newName) {
+            checklistTitle.value = data.checklistName;
+            resizeTextArea(checklistTitle);
+            return;
+          }
+
+          data.checklistName = newName;
+          await saveData();
+        });
+
+        checklistTitle.addEventListener('keydown', event => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            checklistTitle.blur();
+          }
+
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            checklistTitle.value = data.checklistName;
+            resizeTextArea(checklistTitle);
+            checklistTitle.blur();
+          }
+        });
+
         renderTasks();
-        setStatus('Ready. Click a task name to edit it.');
 
         addTaskButton.addEventListener('click', async () => {
           const task = createTask(null);
@@ -592,7 +665,7 @@
 
         await resizeIframe();
       } catch (error) {
-        console.error('Nested Tasks failed to start:', error);
+        console.error('Checklist failed to start:', error);
         setStatus(`Power-Up error: ${error.message}`, true);
       }
     }
