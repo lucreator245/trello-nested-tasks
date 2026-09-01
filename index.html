@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Nested Tasks for Trello</title>
+</head>
+<body>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+
+  <script>
+    window.TrelloPowerUp.initialize({
+      'card-back-section': function (t) {
+        return {
+          title: 'Nested Tasks',
+          content: {
+            type: 'iframe',
+            url: t.signUrl('./tasks.html'),
+            height: 350
+          }
+        };
+      }
+    });
+  </script>
+</body>
+</html>
