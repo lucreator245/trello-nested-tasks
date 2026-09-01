@@ -5,27 +5,40 @@
   <title>Nested Tasks</title>
 
   <style>
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #172b4d;
+    }
+
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
+      width: 100%;
+      min-width: 0;
       margin: 0;
-      padding: 12px;
+      padding: 0;
       background: #ffffff;
-      color: #172b4d;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    body {
+      padding: 12px;
     }
 
     h3 {
       margin: 0 0 8px;
       font-size: 16px;
+      line-height: 20px;
     }
 
     #status {
+      min-height: 18px;
       margin: 0 0 10px;
       color: #5e6c84;
       font-size: 13px;
+      line-height: 18px;
     }
 
     #status.error {
@@ -34,45 +47,67 @@
     }
 
     #tasks {
-      margin-bottom: 10px;
+      width: 100%;
+      min-width: 0;
     }
 
-    .empty {
+    .empty-state {
       margin: 8px 0 12px;
       color: #5e6c84;
       font-size: 13px;
     }
 
     .task-wrapper {
-      margin-top: 6px;
+      width: auto;
+      min-width: 0;
+      margin-top: 7px;
     }
 
     .task-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      min-height: 36px;
-      padding: 4px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      column-gap: 7px;
+      align-items: start;
+      width: 100%;
+      min-width: 0;
+      padding: 6px;
       border-radius: 5px;
       background: #f4f5f7;
     }
 
     .task-checkbox {
-      flex: 0 0 auto;
       width: 17px;
       height: 17px;
+      margin-top: 6px;
       cursor: pointer;
     }
 
-    .task-name {
-      flex: 1 1 auto;
+    .task-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-rows: auto auto;
+      gap: 5px 6px;
+      align-items: start;
       min-width: 0;
+    }
+
+    .task-name {
+      grid-column: 1 / 4;
+      display: block;
+      width: 100%;
+      min-width: 0;
+      min-height: 34px;
+      resize: none;
+      overflow: hidden;
       border: 1px solid #dfe1e6;
       border-radius: 4px;
-      padding: 6px 8px;
+      padding: 7px 8px;
       background: #ffffff;
       color: #172b4d;
       font: inherit;
+      line-height: 18px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
     }
 
     .task-name:focus {
@@ -99,7 +134,8 @@
     }
 
     .subtask-button {
-      flex: 0 0 auto;
+      grid-column: 1;
+      justify-self: start;
       color: #0055cc;
       background: #e9f2ff;
       font-size: 12px;
@@ -111,7 +147,8 @@
     }
 
     .delete-button {
-      flex: 0 0 auto;
+      grid-column: 3;
+      justify-self: end;
       color: #ae2a19;
       background: transparent;
       font-size: 20px;
@@ -123,7 +160,7 @@
     }
 
     #add-task {
-      margin-top: 8px;
+      margin-top: 10px;
       color: #ffffff;
       background: #0c66e4;
     }
@@ -131,12 +168,34 @@
     #add-task:hover {
       background: #0055cc;
     }
+
+    @media (max-width: 430px) {
+      body {
+        padding: 8px;
+      }
+
+      .task-wrapper {
+        margin-left: 0 !important;
+      }
+
+      .task-content {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .subtask-button {
+        grid-column: 1;
+      }
+
+      .delete-button {
+        grid-column: 2;
+      }
+    }
   </style>
 </head>
 
 <body>
   <h3>Nested Tasks</h3>
-  <p id="status">Starting…</p>
+  <p id="status">Loading…</p>
 
   <div id="tasks"></div>
 
@@ -147,53 +206,56 @@
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
 
   <script>
-    let trello;
-    let data = {
-      version: 1,
-      tasks: []
-    };
+    const STORAGE_KEY = 'nested-tasks';
+
+    const trello = window.TrelloPowerUp.iframe();
 
     const statusElement = document.getElementById('status');
     const tasksElement = document.getElementById('tasks');
     const addTaskButton = document.getElementById('add-task');
 
-    function status(message, isError = false) {
+    let data = {
+      version: 1,
+      tasks: []
+    };
+
+    function setStatus(message, isError = false) {
       statusElement.textContent = message;
       statusElement.className = isError ? 'error' : '';
     }
 
-    function newId() {
+    function createId() {
       if (window.crypto && crypto.randomUUID) {
         return crypto.randomUUID();
       }
 
-      return Date.now() + '-' + Math.random().toString(16).slice(2);
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     }
 
-    function newTask(parentId = null) {
+    function createTask(parentId = null) {
       return {
-        id: newId(),
+        id: createId(),
         parentId,
         text: 'New task',
         completed: false
       };
     }
 
-    function childrenOf(parentId) {
+    function getChildren(parentId) {
       return data.tasks.filter(task => task.parentId === parentId);
     }
 
-    function allDescendants(taskId) {
+    function getDescendantIds(taskId) {
       const ids = new Set([taskId]);
-      let changed = true;
+      let foundNewChild = true;
 
-      while (changed) {
-        changed = false;
+      while (foundNewChild) {
+        foundNewChild = false;
 
         for (const task of data.tasks) {
           if (ids.has(task.parentId) && !ids.has(task.id)) {
             ids.add(task.id);
-            changed = true;
+            foundNewChild = true;
           }
         }
       }
@@ -201,55 +263,64 @@
       return ids;
     }
 
-    async function save() {
+    function resizeTextArea(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+
+    async function resizeIframe() {
       try {
-        status('Saving…');
+        await trello.sizeTo(document.body);
+      } catch (error) {
+        console.warn('Could not resize Power-Up iframe:', error);
+      }
+    }
+
+    async function saveData() {
+      try {
+        setStatus('Saving…');
 
         await trello.set(
           'card',
           'private',
-          'nested-tasks',
+          STORAGE_KEY,
           data
         );
 
-        status('Saved.');
-        await resize();
+        setStatus('Saved.');
+        await resizeIframe();
       } catch (error) {
-        console.error('Save error:', error);
-        status('Save failed: ' + error.message, true);
-      }
-    }
-
-    async function resize() {
-      try {
-        await trello.sizeTo(document.body);
-      } catch (error) {
-        console.warn('Resize failed:', error);
+        console.error('Could not save nested tasks:', error);
+        setStatus(`Save failed: ${error.message}`, true);
       }
     }
 
     function focusTask(taskId) {
-      const taskWrapper = document.querySelector(
+      const wrapper = document.querySelector(
         `[data-task-id="${taskId}"]`
       );
 
-      if (!taskWrapper) {
+      if (!wrapper) {
         return;
       }
 
-      const input = taskWrapper.querySelector('.task-name');
+      const input = wrapper.querySelector('.task-name');
 
       if (input) {
         input.focus();
         input.select();
+        resizeTextArea(input);
       }
     }
 
-    function buildTask(task, level) {
+    function createTaskElement(task, level) {
       const wrapper = document.createElement('div');
       wrapper.className = 'task-wrapper';
       wrapper.dataset.taskId = task.id;
-      wrapper.style.marginLeft = `${level * 22}px`;
+
+      if (window.innerWidth > 430) {
+        wrapper.style.marginLeft = `${level * 22}px`;
+      }
 
       const row = document.createElement('div');
       row.className = 'task-row';
@@ -258,169 +329,162 @@
       checkbox.type = 'checkbox';
       checkbox.className = 'task-checkbox';
       checkbox.checked = task.completed;
-      checkbox.title = 'Complete task';
+      checkbox.title = 'Mark task as complete';
 
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'task-name';
-      input.value = task.text;
-      input.title = 'Click to rename this task';
+      const content = document.createElement('div');
+      content.className = 'task-content';
+
+      const nameInput = document.createElement('textarea');
+      nameInput.className = 'task-name';
+      nameInput.value = task.text;
+      nameInput.rows = 1;
+      nameInput.title = 'Click here to edit the task';
+      nameInput.setAttribute('aria-label', 'Task name');
 
       if (task.completed) {
-        input.classList.add('completed');
+        nameInput.classList.add('completed');
       }
 
-      const addChild = document.createElement('button');
-      addChild.type = 'button';
-      addChild.className = 'subtask-button';
-      addChild.textContent = '+ Subtask';
+      const subtaskButton = document.createElement('button');
+      subtaskButton.type = 'button';
+      subtaskButton.className = 'subtask-button';
+      subtaskButton.textContent = '+ Subtask';
+      subtaskButton.title = 'Add a nested task';
 
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'delete-button';
-      remove.textContent = '×';
-      remove.title = 'Delete task and children';
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'delete-button';
+      deleteButton.textContent = '×';
+      deleteButton.title = 'Delete this task and its subtasks';
 
-      checkbox.addEventListener('change', async () => {
-        task.completed = checkbox.checked;
-        input.classList.toggle('completed', task.completed);
-        await save();
+      resizeTextArea(nameInput);
+
+      nameInput.addEventListener('input', () => {
+        resizeTextArea(nameInput);
       });
 
-      input.addEventListener('change', async () => {
-        const value = input.value.trim();
+      nameInput.addEventListener('change', async () => {
+        const newText = nameInput.value.trim();
 
-        if (!value) {
-          input.value = task.text;
+        if (!newText) {
+          nameInput.value = task.text;
+          resizeTextArea(nameInput);
           return;
         }
 
-        task.text = value;
-        await save();
+        if (newText !== task.text) {
+          task.text = newText;
+          await saveData();
+        }
       });
 
-      input.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
+      nameInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault();
-          input.blur();
+          nameInput.blur();
         }
 
         if (event.key === 'Escape') {
           event.preventDefault();
-          input.value = task.text;
-          input.blur();
+          nameInput.value = task.text;
+          resizeTextArea(nameInput);
+          nameInput.blur();
         }
       });
 
-      addChild.addEventListener('click', async () => {
-        const child = newTask(task.id);
+      checkbox.addEventListener('change', async () => {
+        task.completed = checkbox.checked;
+        nameInput.classList.toggle('completed', task.completed);
+        await saveData();
+      });
+
+      subtaskButton.addEventListener('click', async () => {
+        const child = createTask(task.id);
 
         data.tasks.push(child);
-        render();
-        await save();
+        renderTasks();
+        await saveData();
         focusTask(child.id);
       });
 
-      remove.addEventListener('click', async () => {
-        const ids = allDescendants(task.id);
+      deleteButton.addEventListener('click', async () => {
+        const idsToDelete = getDescendantIds(task.id);
 
         data.tasks = data.tasks.filter(
-          currentTask => !ids.has(currentTask.id)
+          currentTask => !idsToDelete.has(currentTask.id)
         );
 
-        render();
-        await save();
+        renderTasks();
+        await saveData();
       });
 
-      row.appendChild(checkbox);
-      row.appendChild(input);
-      row.appendChild(addChild);
-      row.appendChild(remove);
+      content.appendChild(nameInput);
+      content.appendChild(subtaskButton);
+      content.appendChild(deleteButton);
 
+      row.appendChild(checkbox);
+      row.appendChild(content);
       wrapper.appendChild(row);
 
-      for (const child of childrenOf(task.id)) {
-        wrapper.appendChild(buildTask(child, level + 1));
+      for (const child of getChildren(task.id)) {
+        wrapper.appendChild(createTaskElement(child, level + 1));
       }
 
       return wrapper;
     }
 
-    function render() {
+    function renderTasks() {
       tasksElement.replaceChildren();
 
-      const rootTasks = childrenOf(null);
+      const rootTasks = getChildren(null);
 
       if (rootTasks.length === 0) {
         const empty = document.createElement('p');
-        empty.className = 'empty';
-        empty.textContent = 'No tasks yet.';
+        empty.className = 'empty-state';
+        empty.textContent = 'No tasks yet. Add your first task below.';
         tasksElement.appendChild(empty);
         return;
       }
 
       for (const task of rootTasks) {
-        tasksElement.appendChild(buildTask(task, 0));
+        tasksElement.appendChild(createTaskElement(task, 0));
       }
     }
 
     async function start() {
       try {
-        status('Connecting to Trello…');
+        setStatus('Loading…');
 
-        if (!window.TrelloPowerUp) {
-          throw new Error('Trello Power-Up library was not loaded.');
+        const storedData = await trello.get(
+          'card',
+          'private',
+          STORAGE_KEY
+        );
+
+        if (
+          storedData &&
+          typeof storedData === 'object' &&
+          Array.isArray(storedData.tasks)
+        ) {
+          data = storedData;
         }
 
-        trello = window.TrelloPowerUp.iframe();
-
-        /*
-          Render immediately.
-          Storage is loaded afterward so a storage problem cannot
-          leave the entire interface stuck on "Loading".
-        */
-        render();
-        status('Ready. Click a task name to edit it.');
-
-        try {
-          const stored = await Promise.race([
-            trello.get('card', 'private', 'nested-tasks'),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error('Storage request timed out')),
-                5000
-              )
-            )
-          ]);
-
-          if (
-            stored &&
-            typeof stored === 'object' &&
-            Array.isArray(stored.tasks)
-          ) {
-            data = stored;
-            render();
-          }
-
-          status('Ready. Click a task name to edit it.');
-        } catch (storageError) {
-          console.warn('Could not load stored tasks:', storageError);
-          status('Ready. Existing tasks could not be loaded.');
-        }
+        renderTasks();
+        setStatus('Ready. Click a task name to edit it.');
 
         addTaskButton.addEventListener('click', async () => {
-          const task = newTask(null);
+          const task = createTask(null);
 
           data.tasks.push(task);
-          render();
-          await save();
+          renderTasks();
+          await saveData();
           focusTask(task.id);
         });
 
-        await resize();
+        await resizeIframe();
       } catch (error) {
-        console.error('Startup error:', error);
-        status('Power-Up error: ' + error.message, true);
+        console.error('Nested Tasks failed to start:', error);
+        setStatus(`Power-Up error: ${error.message}`, true);
       }
     }
 
