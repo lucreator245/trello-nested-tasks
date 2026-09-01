@@ -124,22 +124,23 @@
       min-height: 30px;
       padding: 2px 3px;
       border-radius: 3px;
+      background: transparent;
     }
 
     .task-row:hover {
       background: var(--surface-hover);
     }
 
-    .task-wrapper.dragging .task-row {
+    .task-wrapper.dragging > .task-row {
       opacity: 0.45;
       background: var(--surface-dragging);
     }
 
-    .task-wrapper.drag-over-before .task-row {
+    .task-wrapper.drag-over-before > .task-row {
       box-shadow: inset 0 2px 0 var(--primary);
     }
 
-    .task-wrapper.drag-over-after .task-row {
+    .task-wrapper.drag-over-after > .task-row {
       box-shadow: inset 0 -2px 0 var(--primary);
     }
 
@@ -395,20 +396,38 @@
 
     function getDescendantIds(taskId) {
       const ids = new Set([taskId]);
-      let changed = true;
+      let foundNewChild = true;
 
-      while (changed) {
-        changed = false;
+      while (foundNewChild) {
+        foundNewChild = false;
 
         for (const task of data.tasks) {
           if (ids.has(task.parentId) && !ids.has(task.id)) {
             ids.add(task.id);
-            changed = true;
+            foundNewChild = true;
           }
         }
       }
 
       return ids;
+    }
+
+    function getTask(taskId) {
+      return data.tasks.find(task => task.id === taskId);
+    }
+
+    function isDescendant(taskId, possibleAncestorId) {
+      let current = getTask(taskId);
+
+      while (current && current.parentId !== null) {
+        if (current.parentId === possibleAncestorId) {
+          return true;
+        }
+
+        current = getTask(current.parentId);
+      }
+
+      return false;
     }
 
     function resizeTextArea(textarea) {
@@ -481,7 +500,7 @@
       }
     }
 
-    function clearDragIndicators() {
+    function clearDropIndicators() {
       document.querySelectorAll(
         '.drag-over-before, .drag-over-after'
       ).forEach(element => {
@@ -492,21 +511,23 @@
       });
     }
 
-    function reorderSiblingTasks(draggedId, targetId, placeAfter) {
-      const draggedTask = data.tasks.find(
-        task => task.id === draggedId
-      );
+    function reorderTask(draggedId, targetId, placeAfter) {
+      const draggedTask = getTask(draggedId);
+      const targetTask = getTask(targetId);
 
-      const targetTask = data.tasks.find(
-        task => task.id === targetId
-      );
+      if (!draggedTask || !targetTask) {
+        return false;
+      }
 
-      if (
-        !draggedTask ||
-        !targetTask ||
-        draggedTask.id === targetTask.id ||
-        draggedTask.parentId !== targetTask.parentId
-      ) {
+      if (draggedId === targetId) {
+        return false;
+      }
+
+      if (draggedTask.parentId !== targetTask.parentId) {
+        return false;
+      }
+
+      if (isDescendant(targetId, draggedId)) {
         return false;
       }
 
@@ -520,25 +541,25 @@
         task => task.id === draggedId
       );
 
-      const targetIndex = siblings.findIndex(
-        task => task.id === targetId
-      );
-
-      if (draggedIndex === -1 || targetIndex === -1) {
+      if (draggedIndex === -1) {
         return false;
       }
 
       siblings.splice(draggedIndex, 1);
 
-      let insertIndex = siblings.findIndex(
+      let targetIndex = siblings.findIndex(
         task => task.id === targetId
       );
 
-      if (placeAfter) {
-        insertIndex += 1;
+      if (targetIndex === -1) {
+        return false;
       }
 
-      siblings.splice(insertIndex, 0, draggedTask);
+      if (placeAfter) {
+        targetIndex += 1;
+      }
+
+      siblings.splice(targetIndex, 0, draggedTask);
 
       const siblingIds = new Set(
         data.tasks
@@ -546,11 +567,7 @@
           .map(task => task.id)
       );
 
-      const orderedSiblingIds = siblings.map(task => task.id);
-
-      const nonSiblingTasks = data.tasks.filter(
-        task => !siblingIds.has(task.id)
-      );
+      const reorderedIds = siblings.map(task => task.id);
 
       const firstSiblingIndex = data.tasks.findIndex(
         task => task.parentId === parentId
@@ -564,13 +581,13 @@
         .slice(firstSiblingIndex)
         .filter(task => !siblingIds.has(task.id));
 
-      const orderedSiblings = orderedSiblingIds.map(
+      const reorderedSiblings = reorderedIds.map(
         id => data.tasks.find(task => task.id === id)
       );
 
       data.tasks = [
         ...before,
-        ...orderedSiblings,
+        ...reorderedSiblings,
         ...after
       ];
 
@@ -635,12 +652,14 @@
 
       resizeTextArea(nameInput);
 
-      dragHandle.addEventListener('pointerdown', () => {
+      dragHandle.addEventListener('mousedown', event => {
+        event.stopPropagation();
         wrapper.draggable = true;
       });
 
-      dragHandle.addEventListener('pointerup', () => {
-        wrapper.draggable = false;
+      dragHandle.addEventListener('touchstart', event => {
+        event.stopPropagation();
+        wrapper.draggable = true;
       });
 
       wrapper.addEventListener('dragstart', event => {
@@ -649,43 +668,48 @@
           return;
         }
 
+        event.stopPropagation();
+
         draggedTaskId = task.id;
 
         event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', task.id);
+        event.dataTransfer.setData(
+          'text/plain',
+          task.id
+        );
 
-        requestAnimationFrame(() => {
-          wrapper.classList.add('dragging');
-        });
-      });
-
-      wrapper.addEventListener('dragend', () => {
-        wrapper.classList.remove('dragging');
-        wrapper.draggable = false;
-        draggedTaskId = null;
-        clearDragIndicators();
+        wrapper.classList.add('dragging');
       });
 
       wrapper.addEventListener('dragover', event => {
+        event.stopPropagation();
+
         if (!draggedTaskId || draggedTaskId === task.id) {
           return;
         }
 
-        const draggedTask = data.tasks.find(
-          currentTask => currentTask.id === draggedTaskId
-        );
+        const draggedTask = getTask(draggedTaskId);
 
-        if (!draggedTask || draggedTask.parentId !== task.parentId) {
+        if (!draggedTask) {
+          return;
+        }
+
+        if (draggedTask.parentId !== task.parentId) {
+          return;
+        }
+
+        if (isDescendant(task.id, draggedTask.id)) {
           return;
         }
 
         event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
 
         const bounds = wrapper.getBoundingClientRect();
         const placeAfter =
           event.clientY > bounds.top + bounds.height / 2;
 
-        clearDragIndicators();
+        clearDropIndicators();
 
         wrapper.classList.add(
           placeAfter
@@ -695,6 +719,8 @@
       });
 
       wrapper.addEventListener('dragleave', event => {
+        event.stopPropagation();
+
         if (!wrapper.contains(event.relatedTarget)) {
           wrapper.classList.remove(
             'drag-over-before',
@@ -705,23 +731,33 @@
 
       wrapper.addEventListener('drop', async event => {
         event.preventDefault();
+        event.stopPropagation();
 
         const placeAfter = wrapper.classList.contains(
           'drag-over-after'
         );
 
-        const changed = reorderSiblingTasks(
+        const changed = reorderTask(
           draggedTaskId,
           task.id,
           placeAfter
         );
 
-        clearDragIndicators();
+        clearDropIndicators();
 
         if (changed) {
           renderTasks();
           await saveData();
         }
+      });
+
+      wrapper.addEventListener('dragend', event => {
+        event.stopPropagation();
+
+        wrapper.classList.remove('dragging');
+        wrapper.draggable = false;
+        draggedTaskId = null;
+        clearDropIndicators();
       });
 
       nameInput.addEventListener('input', () => {
@@ -765,7 +801,9 @@
         await saveData();
       });
 
-      subtaskButton.addEventListener('click', async () => {
+      subtaskButton.addEventListener('click', async event => {
+        event.stopPropagation();
+
         const child = createTask(task.id);
 
         data.tasks.push(child);
@@ -774,7 +812,9 @@
         focusTask(child.id);
       });
 
-      deleteButton.addEventListener('click', async () => {
+      deleteButton.addEventListener('click', async event => {
+        event.stopPropagation();
+
         const ids = getDescendantIds(task.id);
 
         data.tasks = data.tasks.filter(
@@ -794,16 +834,13 @@
       row.appendChild(dragHandle);
       row.appendChild(checkbox);
       row.appendChild(content);
-      row.appendChild(actions.cloneNode(false));
-
-      row.lastChild.remove();
-
-      row.appendChild(actions);
 
       wrapper.appendChild(row);
 
       for (const child of getChildren(task.id)) {
-        wrapper.appendChild(createTaskElement(child, level + 1));
+        wrapper.appendChild(
+          createTaskElement(child, level + 1)
+        );
       }
 
       return wrapper;
@@ -814,7 +851,9 @@
       updateProgress();
 
       for (const task of getChildren(null)) {
-        tasksElement.appendChild(createTaskElement(task, 0));
+        tasksElement.appendChild(
+          createTaskElement(task, 0)
+        );
       }
 
       resizeIframe();
@@ -889,7 +928,8 @@
         await resizeIframe();
       } catch (error) {
         console.error('Checklist failed to start:', error);
-        statusElement.textContent = `Power-Up error: ${error.message}`;
+        statusElement.textContent =
+          `Power-Up error: ${error.message}`;
         statusElement.className = 'error';
       }
     }
