@@ -558,16 +558,7 @@
       updateProgress();
 
       const rootTasks = getChildren(null);
-
-      if (rootTasks.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'empty-state';
-        empty.textContent = 'No tasks yet. Add your first task below.';
-        tasksElement.appendChild(empty);
-        resizeIframe();
-        return;
-      }
-
+      
       for (const task of rootTasks) {
         tasksElement.appendChild(createTaskElement(task, 0));
       }
