@@ -8,15 +8,29 @@
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
 
   <script>
+    const TASKS_URL =
+      'https://lucreator245.github.io/trello-nested-tasks/tasks.html';
+
     window.TrelloPowerUp.initialize({
+      'card-buttons': function (t) {
+        return [{
+          text: 'Nested Tasks',
+          callback: function (t) {
+            return t.popup({
+              title: 'Nested Tasks',
+              url: TASKS_URL,
+              height: 450
+            });
+          }
+        }];
+      },
+
       'card-back-section': function (t) {
         return {
           title: 'Nested Tasks',
           content: {
             type: 'iframe',
-            url: t.signUrl(
-              'https://lucreator245.github.io/trello-nested-tasks/tasks.html'
-            ),
+            url: t.signUrl(TASKS_URL),
             height: 350
           }
         };
