@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Nested Tasks for Trello</title>
+  <title>Nested Tasks</title>
 </head>
 <body>
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
@@ -14,7 +14,9 @@
           title: 'Nested Tasks',
           content: {
             type: 'iframe',
-            url: t.signUrl('./tasks.html'),
+            url: t.signUrl(
+              'https://lucreator245.github.io/trello-nested-tasks/tasks.html'
+            ),
             height: 350
           }
         };
