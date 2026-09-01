@@ -46,6 +46,39 @@
       font-weight: 600;
     }
 
+    .progress {
+      margin: 0 0 14px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      color: #5e6c84;
+      font-size: 13px;
+      line-height: 18px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #dfe1e6;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: #0c66e4;
+      transition: width 160ms ease, background-color 160ms ease;
+    }
+
+    .progress-fill.complete {
+      background: #22a06b;
+    }
+
     #tasks {
       width: 100%;
       min-width: 0;
@@ -160,7 +193,7 @@
     }
 
     #add-task {
-      margin-top: 10px;
+      margin-top: 12px;
       color: #ffffff;
       background: #0c66e4;
     }
@@ -182,6 +215,10 @@
         grid-template-columns: minmax(0, 1fr) auto;
       }
 
+      .task-name {
+        grid-column: 1 / 3;
+      }
+
       .subtask-button {
         grid-column: 1;
       }
@@ -196,6 +233,16 @@
 <body>
   <h3>Nested Tasks</h3>
   <p id="status">Loading…</p>
+
+  <div class="progress" aria-label="Nested task progress">
+    <div class="progress-header">
+      <span id="progress-text">Progress: 0 / 0 · 0%</span>
+    </div>
+
+    <div class="progress-track">
+      <div id="progress-fill" class="progress-fill"></div>
+    </div>
+  </div>
 
   <div id="tasks"></div>
 
@@ -213,6 +260,8 @@
     const statusElement = document.getElementById('status');
     const tasksElement = document.getElementById('tasks');
     const addTaskButton = document.getElementById('add-task');
+    const progressText = document.getElementById('progress-text');
+    const progressFill = document.getElementById('progress-fill');
 
     let data = {
       version: 1,
@@ -261,6 +310,39 @@
       }
 
       return ids;
+    }
+
+    function getProgress() {
+      const total = data.tasks.length;
+
+      const completed = data.tasks.filter(
+        task => task.completed
+      ).length;
+
+      const percentage = total === 0
+        ? 0
+        : Math.round((completed / total) * 100);
+
+      return {
+        total,
+        completed,
+        percentage
+      };
+    }
+
+    function updateProgress() {
+      const progress = getProgress();
+
+      progressText.textContent =
+        `Progress: ${progress.completed} / ${progress.total} · ${progress.percentage}%`;
+
+      progressFill.style.width = `${progress.percentage}%`;
+
+      progressFill.classList.toggle(
+        'complete',
+        progress.total > 0 &&
+        progress.completed === progress.total
+      );
     }
 
     function resizeTextArea(textarea) {
@@ -361,6 +443,7 @@
 
       nameInput.addEventListener('input', () => {
         resizeTextArea(nameInput);
+        resizeIframe();
       });
 
       nameInput.addEventListener('change', async () => {
@@ -395,6 +478,8 @@
       checkbox.addEventListener('change', async () => {
         task.completed = checkbox.checked;
         nameInput.classList.toggle('completed', task.completed);
+
+        updateProgress();
         await saveData();
       });
 
@@ -435,6 +520,7 @@
 
     function renderTasks() {
       tasksElement.replaceChildren();
+      updateProgress();
 
       const rootTasks = getChildren(null);
 
@@ -443,12 +529,15 @@
         empty.className = 'empty-state';
         empty.textContent = 'No tasks yet. Add your first task below.';
         tasksElement.appendChild(empty);
+        resizeIframe();
         return;
       }
 
       for (const task of rootTasks) {
         tasksElement.appendChild(createTaskElement(task, 0));
       }
+
+      resizeIframe();
     }
 
     async function start() {
