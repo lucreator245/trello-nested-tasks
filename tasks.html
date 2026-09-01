@@ -58,10 +58,10 @@
       padding: 3px 4px;
       background: transparent;
       color: var(--text);
+      font-family: inherit;
       font-size: 15px;
       font-weight: 700;
       line-height: 20px;
-      font-family: inherit;
     }
 
     .checklist-title:hover,
@@ -76,8 +76,6 @@
     }
 
     .progress-header {
-      display: flex;
-      justify-content: space-between;
       margin-bottom: 4px;
       color: var(--muted);
       font-size: 12px;
@@ -390,21 +388,25 @@
       };
     }
 
+    function getTask(taskId) {
+      return data.tasks.find(task => task.id === taskId);
+    }
+
     function getChildren(parentId) {
       return data.tasks.filter(task => task.parentId === parentId);
     }
 
     function getDescendantIds(taskId) {
       const ids = new Set([taskId]);
-      let foundNewChild = true;
+      let changed = true;
 
-      while (foundNewChild) {
-        foundNewChild = false;
+      while (changed) {
+        changed = false;
 
         for (const task of data.tasks) {
           if (ids.has(task.parentId) && !ids.has(task.id)) {
             ids.add(task.id);
-            foundNewChild = true;
+            changed = true;
           }
         }
       }
@@ -412,19 +414,15 @@
       return ids;
     }
 
-    function getTask(taskId) {
-      return data.tasks.find(task => task.id === taskId);
-    }
-
     function isDescendant(taskId, possibleAncestorId) {
-      let current = getTask(taskId);
+      let task = getTask(taskId);
 
-      while (current && current.parentId !== null) {
-        if (current.parentId === possibleAncestorId) {
+      while (task && task.parentId !== null) {
+        if (task.parentId === possibleAncestorId) {
           return true;
         }
 
-        current = getTask(current.parentId);
+        task = getTask(task.parentId);
       }
 
       return false;
@@ -437,10 +435,7 @@
 
     function updateProgress() {
       const total = data.tasks.length;
-
-      const completed = data.tasks.filter(
-        task => task.completed
-      ).length;
+      const completed = data.tasks.filter(task => task.completed).length;
 
       const percentage = total === 0
         ? 0
@@ -482,24 +477,6 @@
       }
     }
 
-    function focusTask(taskId) {
-      const wrapper = document.querySelector(
-        `[data-task-id="${taskId}"]`
-      );
-
-      if (!wrapper) {
-        return;
-      }
-
-      const input = wrapper.querySelector('.task-name');
-
-      if (input) {
-        input.focus();
-        input.select();
-        resizeTextArea(input);
-      }
-    }
-
     function clearDropIndicators() {
       document.querySelectorAll(
         '.drag-over-before, .drag-over-after'
@@ -515,45 +492,28 @@
       const draggedTask = getTask(draggedId);
       const targetTask = getTask(targetId);
 
-      if (!draggedTask || !targetTask) {
-        return false;
-      }
-
-      if (draggedId === targetId) {
-        return false;
-      }
-
-      if (draggedTask.parentId !== targetTask.parentId) {
-        return false;
-      }
-
-      if (isDescendant(targetId, draggedId)) {
+      if (
+        !draggedTask ||
+        !targetTask ||
+        draggedTask.id === targetTask.id ||
+        draggedTask.parentId !== targetTask.parentId ||
+        isDescendant(targetId, draggedId)
+      ) {
         return false;
       }
 
       const parentId = draggedTask.parentId;
 
-      const siblings = data.tasks.filter(
-        task => task.parentId === parentId
-      );
-
+      const siblings = getChildren(parentId);
       const draggedIndex = siblings.findIndex(
         task => task.id === draggedId
       );
-
-      if (draggedIndex === -1) {
-        return false;
-      }
 
       siblings.splice(draggedIndex, 1);
 
       let targetIndex = siblings.findIndex(
         task => task.id === targetId
       );
-
-      if (targetIndex === -1) {
-        return false;
-      }
 
       if (placeAfter) {
         targetIndex += 1;
@@ -562,12 +522,8 @@
       siblings.splice(targetIndex, 0, draggedTask);
 
       const siblingIds = new Set(
-        data.tasks
-          .filter(task => task.parentId === parentId)
-          .map(task => task.id)
+        getChildren(parentId).map(task => task.id)
       );
-
-      const reorderedIds = siblings.map(task => task.id);
 
       const firstSiblingIndex = data.tasks.findIndex(
         task => task.parentId === parentId
@@ -581,17 +537,25 @@
         .slice(firstSiblingIndex)
         .filter(task => !siblingIds.has(task.id));
 
-      const reorderedSiblings = reorderedIds.map(
-        id => data.tasks.find(task => task.id === id)
-      );
-
       data.tasks = [
         ...before,
-        ...reorderedSiblings,
+        ...siblings,
         ...after
       ];
 
       return true;
+    }
+
+    function focusTask(taskId) {
+      const input = document.querySelector(
+        `[data-task-id="${taskId}"] .task-name`
+      );
+
+      if (input) {
+        input.focus();
+        input.select();
+        resizeTextArea(input);
+      }
     }
 
     function createTaskElement(task, level) {
@@ -611,7 +575,6 @@
       dragHandle.className = 'drag-handle';
       dragHandle.textContent = '⠿';
       dragHandle.title = 'Drag to reorder';
-      dragHandle.setAttribute('aria-label', 'Drag to reorder');
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -619,15 +582,11 @@
       checkbox.checked = task.completed;
       checkbox.title = 'Complete task';
 
-      const content = document.createElement('div');
-      content.className = 'task-content';
-
       const nameInput = document.createElement('textarea');
       nameInput.className = 'task-name';
       nameInput.value = task.text;
       nameInput.rows = 1;
       nameInput.title = 'Click to edit task';
-      nameInput.setAttribute('aria-label', 'Task name');
 
       if (task.completed) {
         nameInput.classList.add('completed');
@@ -641,23 +600,16 @@
       subtaskButton.className = 'subtask-button';
       subtaskButton.textContent = '+';
       subtaskButton.title = 'Add subtask';
-      subtaskButton.setAttribute('aria-label', 'Add subtask');
 
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
       deleteButton.className = 'delete-button';
       deleteButton.textContent = '×';
       deleteButton.title = 'Delete task and subtasks';
-      deleteButton.setAttribute('aria-label', 'Delete task');
 
       resizeTextArea(nameInput);
 
       dragHandle.addEventListener('mousedown', event => {
-        event.stopPropagation();
-        wrapper.draggable = true;
-      });
-
-      dragHandle.addEventListener('touchstart', event => {
         event.stopPropagation();
         wrapper.draggable = true;
       });
@@ -671,12 +623,8 @@
         event.stopPropagation();
 
         draggedTaskId = task.id;
-
         event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData(
-          'text/plain',
-          task.id
-        );
+        event.dataTransfer.setData('text/plain', task.id);
 
         wrapper.classList.add('dragging');
       });
@@ -690,15 +638,11 @@
 
         const draggedTask = getTask(draggedTaskId);
 
-        if (!draggedTask) {
-          return;
-        }
-
-        if (draggedTask.parentId !== task.parentId) {
-          return;
-        }
-
-        if (isDescendant(task.id, draggedTask.id)) {
+        if (
+          !draggedTask ||
+          draggedTask.parentId !== task.parentId ||
+          isDescendant(task.id, draggedTask.id)
+        ) {
           return;
         }
 
@@ -716,17 +660,6 @@
             ? 'drag-over-after'
             : 'drag-over-before'
         );
-      });
-
-      wrapper.addEventListener('dragleave', event => {
-        event.stopPropagation();
-
-        if (!wrapper.contains(event.relatedTarget)) {
-          wrapper.classList.remove(
-            'drag-over-before',
-            'drag-over-after'
-          );
-        }
       });
 
       wrapper.addEventListener('drop', async event => {
@@ -757,6 +690,7 @@
         wrapper.classList.remove('dragging');
         wrapper.draggable = false;
         draggedTaskId = null;
+
         clearDropIndicators();
       });
 
@@ -797,6 +731,7 @@
       checkbox.addEventListener('change', async () => {
         task.completed = checkbox.checked;
         nameInput.classList.toggle('completed', task.completed);
+
         updateProgress();
         await saveData();
       });
@@ -828,12 +763,10 @@
       actions.appendChild(subtaskButton);
       actions.appendChild(deleteButton);
 
-      content.appendChild(nameInput);
-      content.appendChild(actions);
-
       row.appendChild(dragHandle);
       row.appendChild(checkbox);
-      row.appendChild(content);
+      row.appendChild(nameInput);
+      row.appendChild(actions);
 
       wrapper.appendChild(row);
 
@@ -848,6 +781,7 @@
 
     function renderTasks() {
       tasksElement.replaceChildren();
+
       updateProgress();
 
       for (const task of getChildren(null)) {
@@ -928,8 +862,10 @@
         await resizeIframe();
       } catch (error) {
         console.error('Checklist failed to start:', error);
+
         statusElement.textContent =
           `Power-Up error: ${error.message}`;
+
         statusElement.className = 'error';
       }
     }
