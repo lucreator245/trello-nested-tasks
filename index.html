@@ -15,68 +15,68 @@
     const ICON_URL =
       'https://lucreator245.github.io/trello-nested-tasks/icon.svg';
 
-    function getTaskCount(tasks) {
-      let total = 0;
-      let completed = 0;
+    const STORAGE_KEY = 'nested-tasks';
 
-      for (const task of tasks) {
-        total++;
+    function getProgress(data) {
+      const tasks =
+        data &&
+        Array.isArray(data.tasks)
+          ? data.tasks
+          : [];
 
-        if (task.completed) {
-          completed++;
-        }
-      }
+      const total = tasks.length;
+
+      const completed = tasks.filter(
+        task => task.completed
+      ).length;
+
+      const percentage = total === 0
+        ? 0
+        : Math.round((completed / total) * 100);
 
       return {
         total,
-        completed
+        completed,
+        percentage
       };
     }
 
     window.TrelloPowerUp.initialize({
       'card-buttons': function (t) {
-        return [
-          {
-            text: 'Nested Tasks',
-            icon: ICON_URL,
-            callback: function () {
-              return t.popup({
-                title: 'Nested Tasks',
-                url: TASKS_URL,
-                height: 500
-              });
-            }
+        return [{
+          text: 'Nested Tasks',
+          icon: ICON_URL,
+
+          callback: function () {
+            return t.popup({
+              title: 'Nested Tasks',
+              url: TASKS_URL,
+              height: 560
+            });
           }
-        ];
+        }];
       },
 
       'card-badges': function (t) {
-        return t.get('card', 'private', 'nested-tasks')
+        return t.get('card', 'private', STORAGE_KEY)
           .then(function (data) {
-            const tasks =
-              data && Array.isArray(data.tasks)
-                ? data.tasks
-                : [];
+            const progress = getProgress(data);
 
-            const count = getTaskCount(tasks);
-
-            if (count.total === 0) {
+            if (progress.total === 0) {
               return [];
             }
 
-            return [
-              {
-                text: `${count.completed}/${count.total}`,
-                icon: ICON_URL,
-                color: count.completed === count.total
-                  ? 'green'
-                  : 'blue',
-                refresh: 10
-              }
-            ];
+            return [{
+              icon: ICON_URL,
+              text: `${progress.completed}/${progress.total} · ${progress.percentage}%`,
+              color: progress.completed === progress.total
+                ? 'green'
+                : 'blue',
+              refresh: 10
+            }];
           })
           .catch(function (error) {
-            console.error('Could not load task badge:', error);
+            console.error('Could not create Nested Tasks badge:', error);
             return [];
           });
       },
@@ -85,10 +85,11 @@
         return {
           title: 'Nested Tasks',
           icon: ICON_URL,
+
           content: {
             type: 'iframe',
             url: t.signUrl(TASKS_URL),
-            height: 450
+            height: 560
           }
         };
       }
