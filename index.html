@@ -15,6 +15,9 @@
     const ICON_URL =
       'https://lucreator245.github.io/trello-nested-tasks/icon.svg';
 
+    const BADGE_ICON_URL =
+      'https://lucreator245.github.io/trello-nested-tasks/checklist-badge.svg';
+
     const STORAGE_KEY = 'nested-tasks';
 
     function getTaskData(data) {
@@ -76,7 +79,7 @@
             progress.completed === progress.total;
 
           return [{
-            icon: ICON_URL,
+            icon: BADGE_ICON_URL,
 
             text:
               `${progress.mainCompleted}/${progress.mainTotal}`,
