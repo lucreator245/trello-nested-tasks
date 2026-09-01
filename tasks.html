@@ -6,8 +6,22 @@
 
   <style>
     :root {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      color: #172b4d;
+      color-scheme: light;
+
+      --background: #ffffff;
+      --surface: #f4f5f7;
+      --surface-hover: #ebecf0;
+      --input-background: #ffffff;
+      --border: #dfe1e6;
+      --text: #172b4d;
+      --muted: #5e6c84;
+      --primary: #0c66e4;
+      --primary-hover: #0055cc;
+      --primary-soft: #e9f2ff;
+      --danger: #ae2a19;
+      --danger-hover: #ffebe6;
+      --track: #dfe1e6;
+      --complete: #22a06b;
     }
 
     * {
@@ -20,15 +34,18 @@
       min-width: 0;
       margin: 0;
       padding: 0;
-      background: #ffffff;
+      background: var(--background);
+      color: var(--text);
     }
 
     body {
       padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
 
     h3 {
       margin: 0 0 8px;
+      color: var(--text);
       font-size: 16px;
       line-height: 20px;
     }
@@ -36,13 +53,13 @@
     #status {
       min-height: 18px;
       margin: 0 0 10px;
-      color: #5e6c84;
+      color: var(--muted);
       font-size: 13px;
       line-height: 18px;
     }
 
     #status.error {
-      color: #ae2a19;
+      color: var(--danger);
       font-weight: 600;
     }
 
@@ -54,7 +71,7 @@
       display: flex;
       justify-content: space-between;
       margin-bottom: 6px;
-      color: #5e6c84;
+      color: var(--muted);
       font-size: 13px;
       line-height: 18px;
     }
@@ -64,19 +81,19 @@
       height: 8px;
       overflow: hidden;
       border-radius: 999px;
-      background: #dfe1e6;
+      background: var(--track);
     }
 
     .progress-fill {
       width: 0%;
       height: 100%;
       border-radius: inherit;
-      background: #0c66e4;
+      background: var(--primary);
       transition: width 160ms ease, background-color 160ms ease;
     }
 
     .progress-fill.complete {
-      background: #22a06b;
+      background: var(--complete);
     }
 
     #tasks {
@@ -86,7 +103,7 @@
 
     .empty-state {
       margin: 8px 0 12px;
-      color: #5e6c84;
+      color: var(--muted);
       font-size: 13px;
     }
 
@@ -105,7 +122,7 @@
       min-width: 0;
       padding: 6px;
       border-radius: 5px;
-      background: #f4f5f7;
+      background: var(--surface);
     }
 
     .task-checkbox {
@@ -113,6 +130,7 @@
       height: 17px;
       margin-top: 6px;
       cursor: pointer;
+      accent-color: var(--primary);
     }
 
     .task-content {
@@ -132,11 +150,11 @@
       min-height: 34px;
       resize: none;
       overflow: hidden;
-      border: 1px solid #dfe1e6;
+      border: 1px solid var(--border);
       border-radius: 4px;
       padding: 7px 8px;
-      background: #ffffff;
-      color: #172b4d;
+      background: var(--input-background);
+      color: var(--text);
       font: inherit;
       line-height: 18px;
       overflow-wrap: anywhere;
@@ -144,12 +162,16 @@
     }
 
     .task-name:focus {
-      border-color: #0c66e4;
-      outline: 2px solid #0c66e433;
+      border-color: var(--primary);
+      outline: 2px solid color-mix(
+        in srgb,
+        var(--primary) 25%,
+        transparent
+      );
     }
 
     .task-name.completed {
-      color: #5e6c84;
+      color: var(--muted);
       text-decoration: line-through;
     }
 
@@ -169,37 +191,41 @@
     .subtask-button {
       grid-column: 1;
       justify-self: start;
-      color: #0055cc;
-      background: #e9f2ff;
+      color: var(--primary);
+      background: var(--primary-soft);
       font-size: 12px;
       white-space: nowrap;
     }
 
     .subtask-button:hover {
-      background: #cce0ff;
+      background: color-mix(
+        in srgb,
+        var(--primary-soft) 80%,
+        var(--primary)
+      );
     }
 
     .delete-button {
       grid-column: 3;
       justify-self: end;
-      color: #ae2a19;
+      color: var(--danger);
       background: transparent;
       font-size: 20px;
       line-height: 20px;
     }
 
     .delete-button:hover {
-      background: #ffebe6;
+      background: var(--danger-hover);
     }
 
     #add-task {
       margin-top: 12px;
       color: #ffffff;
-      background: #0c66e4;
+      background: var(--primary);
     }
 
     #add-task:hover {
-      background: #0055cc;
+      background: var(--primary-hover);
     }
 
     @media (max-width: 430px) {
@@ -225,6 +251,27 @@
 
       .delete-button {
         grid-column: 2;
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+
+        --background: #1d2125;
+        --surface: #22272b;
+        --surface-hover: #2c333a;
+        --input-background: #22272b;
+        --border: #454f59;
+        --text: #b6c2cf;
+        --muted: #9fadbc;
+        --primary: #579dff;
+        --primary-hover: #85b8ff;
+        --primary-soft: #1c2b41;
+        --danger: #f87168;
+        --danger-hover: #42221f;
+        --track: #454f59;
+        --complete: #4bce97;
       }
     }
   </style>
@@ -312,7 +359,7 @@
       return ids;
     }
 
-    function getProgress() {
+    function updateProgress() {
       const total = data.tasks.length;
 
       const completed = data.tasks.filter(
@@ -323,25 +370,14 @@
         ? 0
         : Math.round((completed / total) * 100);
 
-      return {
-        total,
-        completed,
-        percentage
-      };
-    }
-
-    function updateProgress() {
-      const progress = getProgress();
-
       progressText.textContent =
-        `Progress: ${progress.completed} / ${progress.total} · ${progress.percentage}%`;
+        `Progress: ${completed} / ${total} · ${percentage}%`;
 
-      progressFill.style.width = `${progress.percentage}%`;
+      progressFill.style.width = `${percentage}%`;
 
       progressFill.classList.toggle(
         'complete',
-        progress.total > 0 &&
-        progress.completed === progress.total
+        total > 0 && completed === total
       );
     }
 
@@ -478,7 +514,6 @@
       checkbox.addEventListener('change', async () => {
         task.completed = checkbox.checked;
         nameInput.classList.toggle('completed', task.completed);
-
         updateProgress();
         await saveData();
       });
