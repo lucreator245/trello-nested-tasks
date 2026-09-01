@@ -17,7 +17,30 @@
 
     const STORAGE_KEY = 'nested-tasks';
 
-    function getProgress(data) {
+    function getMainTaskProgress(data) {
+      const tasks =
+        data &&
+        Array.isArray(data.tasks)
+          ? data.tasks
+          : [];
+
+      const mainTasks = tasks.filter(
+        task => task.parentId === null
+      );
+
+      const total = mainTasks.length;
+
+      const completed = mainTasks.filter(
+        task => task.completed
+      ).length;
+
+      return {
+        total,
+        completed
+      };
+    }
+
+    function getAllTaskProgress(data) {
       const tasks =
         data &&
         Array.isArray(data.tasks)
@@ -30,14 +53,9 @@
         task => task.completed
       ).length;
 
-      const percentage = total === 0
-        ? 0
-        : Math.round((completed / total) * 100);
-
       return {
         total,
-        completed,
-        percentage
+        completed
       };
     }
 
@@ -58,27 +76,35 @@
       },
 
       'card-badges': function (t) {
-        return t.get('card', 'private', STORAGE_KEY)
-          .then(function (data) {
-            const progress = getProgress(data);
+        return t.get(
+          'card',
+          'private',
+          STORAGE_KEY
+        ).then(function (data) {
+          const mainProgress = getMainTaskProgress(data);
+          const allProgress = getAllTaskProgress(data);
 
-            if (progress.total === 0) {
-              return [];
-            }
-
-            return [{
-              icon: ICON_URL,
-              text: `${progress.completed}/${progress.total} · ${progress.percentage}%`,
-              color: progress.completed === progress.total
-                ? 'green'
-                : 'blue',
-              refresh: 10
-            }];
-          })
-          .catch(function (error) {
-            console.error('Could not create Nested Tasks badge:', error);
+          if (allProgress.total === 0) {
             return [];
-          });
+          }
+
+          const allComplete =
+            allProgress.completed === allProgress.total;
+
+          return [{
+            icon: ICON_URL,
+            text: `${mainProgress.completed}/${mainProgress.total}`,
+            color: allComplete ? 'green' : 'blue',
+            refresh: 5
+          }];
+        }).catch(function (error) {
+          console.error(
+            'Could not load checklist badge:',
+            error
+          );
+
+          return [];
+        });
       },
 
       'card-back-section': function (t) {
