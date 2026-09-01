@@ -164,17 +164,29 @@
     }
 
     t.render(async () => {
-      const data = await loadTasks();
+  const data = await loadTasks();
 
-      renderTaskList(data);
+  renderTaskList(data);
 
-      document.querySelector('#add-root-task').onclick = async () => {
-        data.tasks.push(createTask('New task'));
-        await saveTasks(data);
-      };
+  document.querySelector('#add-root-task').onclick = async () => {
+    const button = document.querySelector('#add-root-task');
 
-      await t.sizeTo('#app');
-    });
+    button.disabled = true;
+    button.textContent = 'Saving…';
+
+    try {
+      data.tasks.push(createTask('New task'));
+      await saveTasks(data);
+    } catch (error) {
+      console.error('Could not save task:', error);
+      button.disabled = false;
+      button.textContent = '+ Add task';
+      alert('The task could not be saved. Please reload the card and try again.');
+    }
+  };
+
+  await t.sizeTo('#app');
+});
   </script>
 </body>
 </html>
