@@ -9,8 +9,7 @@
       color-scheme: light;
 
       --background: #ffffff;
-      --surface: #f4f5f7;
-      --input-background: #ffffff;
+      --surface-hover: #f4f5f7;
       --border: #dfe1e6;
       --text: #172b4d;
       --muted: #5e6c84;
@@ -20,7 +19,7 @@
       --danger: #ae2a19;
       --danger-hover: #ffebe6;
       --track: #dfe1e6;
-      --complete: #22a06b;
+      --complete: #22a06a;
     }
 
     * {
@@ -38,42 +37,27 @@
     }
 
     body {
-      padding: 12px;
+      padding: 8px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
 
     #status {
-      min-height: 0;
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 18px;
-    }
-
-    #status:empty {
       display: none;
-    }
-
-    #status.error {
-      display: block;
-      margin: 0 0 10px;
-      color: var(--danger);
-      font-weight: 600;
     }
 
     .checklist-title {
       display: block;
       width: 100%;
-      min-height: 34px;
-      margin: 0 0 10px;
+      min-height: 28px;
+      margin: 0 0 6px;
       resize: none;
       overflow: hidden;
       border: 1px solid transparent;
-      border-radius: 4px;
-      padding: 5px 6px;
+      border-radius: 3px;
+      padding: 3px 4px;
       background: transparent;
       color: var(--text);
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       line-height: 20px;
       font-family: inherit;
@@ -82,35 +66,26 @@
     .checklist-title:hover,
     .checklist-title:focus {
       border-color: var(--border);
-      background: var(--input-background);
+      background: var(--background);
       outline: none;
     }
 
-    .checklist-title:focus {
-      border-color: var(--primary);
-      outline: 2px solid color-mix(
-        in srgb,
-        var(--primary) 25%,
-        transparent
-      );
-    }
-
     .progress {
-      margin: 0 0 14px;
+      margin: 0 0 7px;
     }
 
     .progress-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       color: var(--muted);
-      font-size: 13px;
-      line-height: 18px;
+      font-size: 12px;
+      line-height: 16px;
     }
 
     .progress-track {
       width: 100%;
-      height: 8px;
+      height: 5px;
       overflow: hidden;
       border-radius: 999px;
       background: var(--track);
@@ -131,67 +106,68 @@
     #tasks {
       width: 100%;
       min-width: 0;
+      margin-top: 2px;
     }
 
     .task-wrapper {
       width: auto;
       min-width: 0;
-      margin-top: 7px;
     }
 
     .task-row {
       display: grid;
-      grid-template-columns: 18px minmax(0, 1fr);
-      column-gap: 7px;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      gap: 6px;
       align-items: start;
-      width: 100%;
       min-width: 0;
-      padding: 6px;
-      border-radius: 5px;
-      background: var(--surface);
+      min-height: 30px;
+      padding: 2px 3px;
+      border-radius: 3px;
+    }
+
+    .task-row:hover {
+      background: var(--surface-hover);
     }
 
     .task-checkbox {
-      width: 17px;
-      height: 17px;
-      margin-top: 6px;
+      width: 16px;
+      height: 16px;
+      margin-top: 5px;
       cursor: pointer;
       accent-color: var(--primary);
     }
 
-    .task-content {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
-      grid-template-rows: auto auto;
-      gap: 5px 6px;
-      align-items: start;
-      min-width: 0;
-    }
-
     .task-name {
-      grid-column: 1 / 4;
       display: block;
       width: 100%;
       min-width: 0;
-      min-height: 34px;
+      min-height: 26px;
       resize: none;
       overflow: hidden;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 7px 8px;
-      background: var(--input-background);
+      border: 1px solid transparent;
+      border-radius: 3px;
+      padding: 3px 4px;
+      background: transparent;
       color: var(--text);
       font: inherit;
-      line-height: 18px;
+      font-size: 14px;
+      line-height: 19px;
       overflow-wrap: anywhere;
       white-space: pre-wrap;
+    }
+
+    .task-name:hover,
+    .task-name:focus {
+      border-color: var(--border);
+      background: var(--background);
+      outline: none;
     }
 
     .task-name:focus {
       border-color: var(--primary);
       outline: 2px solid color-mix(
         in srgb,
-        var(--primary) 25%,
+        var(--primary) 20%,
         transparent
       );
     }
@@ -201,43 +177,48 @@
       text-decoration: line-through;
     }
 
-    button {
-      border: 0;
-      border-radius: 4px;
-      padding: 6px 8px;
-      cursor: pointer;
-      font: inherit;
+    .task-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      min-height: 26px;
+      opacity: 0;
+      transition: opacity 100ms ease;
     }
 
-    button:disabled {
-      cursor: wait;
-      opacity: 0.6;
+    .task-row:hover .task-actions,
+    .task-row:focus-within .task-actions {
+      opacity: 1;
+    }
+
+    .subtask-button,
+    .delete-button {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+      line-height: 24px;
+      text-align: center;
     }
 
     .subtask-button {
-      grid-column: 1;
-      justify-self: start;
       color: var(--primary);
-      background: var(--primary-soft);
-      font-size: 12px;
-      white-space: nowrap;
+      background: transparent;
+      font-size: 18px;
     }
 
     .subtask-button:hover {
-      background: color-mix(
-        in srgb,
-        var(--primary-soft) 80%,
-        var(--primary)
-      );
+      background: var(--primary-soft);
+      color: var(--primary-hover);
     }
 
     .delete-button {
-      grid-column: 3;
-      justify-self: end;
       color: var(--danger);
       background: transparent;
-      font-size: 20px;
-      line-height: 20px;
+      font-size: 18px;
     }
 
     .delete-button:hover {
@@ -245,38 +226,37 @@
     }
 
     #add-task {
-      margin-top: 12px;
-      color: #ffffff;
-      background: var(--primary);
+      margin-top: 6px;
+      padding: 5px 8px;
+      border: 0;
+      border-radius: 3px;
+      color: var(--primary);
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
     }
 
     #add-task:hover {
-      background: var(--primary-hover);
+      background: var(--primary-soft);
+      color: var(--primary-hover);
     }
 
     @media (max-width: 430px) {
       body {
-        padding: 8px;
+        padding: 5px;
       }
 
       .task-wrapper {
         margin-left: 0 !important;
       }
 
-      .task-content {
-        grid-template-columns: minmax(0, 1fr) auto;
-      }
-
-      .task-name {
-        grid-column: 1 / 3;
-      }
-
-      .subtask-button {
-        grid-column: 1;
+      .task-actions {
+        opacity: 1;
       }
 
       .delete-button {
-        grid-column: 2;
+        display: none;
       }
     }
 
@@ -285,8 +265,7 @@
         color-scheme: dark;
 
         --background: #1d2125;
-        --surface: #22272b;
-        --input-background: #22272b;
+        --surface-hover: #22272b;
         --border: #454f59;
         --text: #b6c2cf;
         --muted: #9fadbc;
@@ -336,23 +315,18 @@
 
     const trello = window.TrelloPowerUp.iframe();
 
-    const statusElement = document.getElementById('status');
     const checklistTitle = document.getElementById('checklist-title');
     const tasksElement = document.getElementById('tasks');
     const addTaskButton = document.getElementById('add-task');
     const progressText = document.getElementById('progress-text');
     const progressFill = document.getElementById('progress-fill');
+    const statusElement = document.getElementById('status');
 
     let data = {
       version: 1,
       checklistName: 'Checklist',
       tasks: []
     };
-
-    function setStatus(message, isError = false) {
-      statusElement.textContent = message;
-      statusElement.className = isError ? 'error' : '';
-    }
 
     function createId() {
       if (window.crypto && crypto.randomUUID) {
@@ -377,15 +351,15 @@
 
     function getDescendantIds(taskId) {
       const ids = new Set([taskId]);
-      let foundNewChild = true;
+      let changed = true;
 
-      while (foundNewChild) {
-        foundNewChild = false;
+      while (changed) {
+        changed = false;
 
         for (const task of data.tasks) {
           if (ids.has(task.parentId) && !ids.has(task.id)) {
             ids.add(task.id);
-            foundNewChild = true;
+            changed = true;
           }
         }
       }
@@ -424,7 +398,7 @@
       try {
         await trello.sizeTo(document.body);
       } catch (error) {
-        console.warn('Could not resize Power-Up iframe:', error);
+        console.warn('Could not resize iframe:', error);
       }
     }
 
@@ -440,7 +414,8 @@
         await resizeIframe();
       } catch (error) {
         console.error('Could not save checklist:', error);
-        setStatus(`Save failed: ${error.message}`, true);
+        statusElement.textContent = `Save failed: ${error.message}`;
+        statusElement.className = 'error';
       }
     }
 
@@ -468,7 +443,7 @@
       wrapper.dataset.taskId = task.id;
 
       if (window.innerWidth > 430) {
-        wrapper.style.marginLeft = `${level * 22}px`;
+        wrapper.style.marginLeft = `${level * 20}px`;
       }
 
       const row = document.createElement('div');
@@ -478,7 +453,7 @@
       checkbox.type = 'checkbox';
       checkbox.className = 'task-checkbox';
       checkbox.checked = task.completed;
-      checkbox.title = 'Mark task as complete';
+      checkbox.title = 'Complete task';
 
       const content = document.createElement('div');
       content.className = 'task-content';
@@ -487,24 +462,29 @@
       nameInput.className = 'task-name';
       nameInput.value = task.text;
       nameInput.rows = 1;
-      nameInput.title = 'Click here to edit the task';
+      nameInput.title = 'Click to edit task';
       nameInput.setAttribute('aria-label', 'Task name');
 
       if (task.completed) {
         nameInput.classList.add('completed');
       }
 
+      const actions = document.createElement('div');
+      actions.className = 'task-actions';
+
       const subtaskButton = document.createElement('button');
       subtaskButton.type = 'button';
       subtaskButton.className = 'subtask-button';
-      subtaskButton.textContent = '+ Subtask';
-      subtaskButton.title = 'Add a nested task';
+      subtaskButton.textContent = '+';
+      subtaskButton.title = 'Add subtask';
+      subtaskButton.setAttribute('aria-label', 'Add subtask');
 
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
       deleteButton.className = 'delete-button';
       deleteButton.textContent = '×';
-      deleteButton.title = 'Delete this task and its subtasks';
+      deleteButton.title = 'Delete task and subtasks';
+      deleteButton.setAttribute('aria-label', 'Delete task');
 
       resizeTextArea(nameInput);
 
@@ -559,19 +539,21 @@
       });
 
       deleteButton.addEventListener('click', async () => {
-        const idsToDelete = getDescendantIds(task.id);
+        const ids = getDescendantIds(task.id);
 
         data.tasks = data.tasks.filter(
-          currentTask => !idsToDelete.has(currentTask.id)
+          currentTask => !ids.has(currentTask.id)
         );
 
         renderTasks();
         await saveData();
       });
 
+      actions.appendChild(subtaskButton);
+      actions.appendChild(deleteButton);
+
       content.appendChild(nameInput);
-      content.appendChild(subtaskButton);
-      content.appendChild(deleteButton);
+      content.appendChild(actions);
 
       row.appendChild(checkbox);
       row.appendChild(content);
@@ -588,9 +570,7 @@
       tasksElement.replaceChildren();
       updateProgress();
 
-      const rootTasks = getChildren(null);
-
-      for (const task of rootTasks) {
+      for (const task of getChildren(null)) {
         tasksElement.appendChild(createTaskElement(task, 0));
       }
 
@@ -599,21 +579,21 @@
 
     async function start() {
       try {
-        const storedData = await trello.get(
+        const savedData = await trello.get(
           'card',
           'private',
           STORAGE_KEY
         );
 
         if (
-          storedData &&
-          typeof storedData === 'object' &&
-          Array.isArray(storedData.tasks)
+          savedData &&
+          typeof savedData === 'object' &&
+          Array.isArray(savedData.tasks)
         ) {
           data = {
-            version: storedData.version || 1,
-            checklistName: storedData.checklistName || 'Checklist',
-            tasks: storedData.tasks
+            version: savedData.version || 1,
+            checklistName: savedData.checklistName || 'Checklist',
+            tasks: savedData.tasks
           };
         }
 
@@ -666,7 +646,8 @@
         await resizeIframe();
       } catch (error) {
         console.error('Checklist failed to start:', error);
-        setStatus(`Power-Up error: ${error.message}`, true);
+        statusElement.textContent = `Power-Up error: ${error.message}`;
+        statusElement.className = 'error';
       }
     }
 
