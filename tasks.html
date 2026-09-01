@@ -14,7 +14,7 @@
     }
 
     h3 {
-      margin: 0 0 12px;
+      margin: 0 0 10px;
       font-size: 16px;
     }
 
@@ -24,31 +24,82 @@
       font-size: 13px;
     }
 
-    #tasks {
-      margin-bottom: 12px;
-    }
-
     .task {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       margin: 6px 0;
-      padding: 6px;
+      padding: 5px;
       border-radius: 4px;
       background: #f4f5f7;
+    }
+
+    .task input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 16px;
+      height: 16px;
+    }
+
+    .task-name {
+      flex: 1;
+      min-width: 0;
+      padding: 5px 6px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: #172b4d;
+      font: inherit;
+    }
+
+    .task-name:hover,
+    .task-name:focus {
+      border-color: #091e4224;
+      background: #ffffff;
+      outline: none;
+    }
+
+    .task-name.completed {
+      color: #5e6c84;
+      text-decoration: line-through;
     }
 
     button {
       border: 0;
       border-radius: 4px;
-      padding: 7px 10px;
-      color: #ffffff;
-      background: #0c66e4;
+      padding: 6px 8px;
       cursor: pointer;
       font: inherit;
     }
 
-    button:hover {
+    .subtask-button {
+      color: #0055cc;
+      background: #e9f2ff;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .subtask-button:hover {
+      background: #cce0ff;
+    }
+
+    .delete-button {
+      color: #ae2a19;
+      background: transparent;
+      font-size: 20px;
+      line-height: 20px;
+    }
+
+    .delete-button:hover {
+      background: #ffebe6;
+    }
+
+    #add-task {
+      margin-top: 10px;
+      color: #ffffff;
+      background: #0c66e4;
+    }
+
+    #add-task:hover {
       background: #0055cc;
     }
 
@@ -61,101 +112,221 @@
 
 <body>
   <h3>Nested Tasks</h3>
-  <p id="status">Loading Trello connection…</p>
+  <p id="status">Loading…</p>
 
   <div id="tasks"></div>
 
-  <button id="add-task" type="button">
-    + Add task
-  </button>
+  <button id="add-task" type="button">+ Add task</button>
 
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
 
   <script>
-    const status = document.getElementById('status');
-    const tasksElement = document.getElementById('tasks');
-    const addButton = document.getElementById('add-task');
+    const t = window.TrelloPowerUp.iframe();
 
-    let t;
-    let tasks = [];
+    const statusElement = document.querySelector('#status');
+    const tasksElement = document.querySelector('#tasks');
+    const addButton = document.querySelector('#add-task');
 
-    function setStatus(message, isError = false) {
-      status.textContent = message;
-      status.className = isError ? 'error' : '';
+    let data = {
+      version: 1,
+      tasks: []
+    };
+
+    function setStatus(message, error = false) {
+      statusElement.textContent = message;
+      statusElement.className = error ? 'error' : '';
     }
 
-    function drawTasks() {
-      tasksElement.replaceChildren();
+    function createTask(parentId = null) {
+      return {
+        id: crypto.randomUUID(),
+        parentId,
+        text: 'New task',
+        completed: false
+      };
+    }
 
-      if (tasks.length === 0) {
-        const empty = document.createElement('p');
-        empty.textContent = 'No tasks yet.';
-        empty.style.color = '#5e6c84';
-        tasksElement.appendChild(empty);
-        return;
-      }
+    function childrenOf(parentId) {
+      return data.tasks.filter(task => task.parentId === parentId);
+    }
 
-      for (const task of tasks) {
-        const row = document.createElement('div');
-        row.className = 'task';
+    function descendantIds(taskId) {
+      const ids = new Set([taskId]);
+      let changed = true;
 
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = task.done;
+      while (changed) {
+        changed = false;
 
-        const label = document.createElement('span');
-        label.textContent = task.text;
-
-        if (task.done) {
-          label.style.textDecoration = 'line-through';
-          label.style.color = '#5e6c84';
+        for (const task of data.tasks) {
+          if (ids.has(task.parentId) && !ids.has(task.id)) {
+            ids.add(task.id);
+            changed = true;
+          }
         }
-
-        checkbox.addEventListener('change', async () => {
-          task.done = checkbox.checked;
-          await saveTasks();
-        });
-
-        row.appendChild(checkbox);
-        row.appendChild(label);
-        tasksElement.appendChild(row);
       }
+
+      return ids;
     }
 
-    async function saveTasks() {
+    async function save() {
       try {
         setStatus('Saving…');
-        await t.set('card', 'private', 'nested-tasks', tasks);
-        drawTasks();
+
+        await t.set(
+          'card',
+          'private',
+          'nested-tasks',
+          data
+        );
+
         setStatus('Saved.');
-        await t.sizeTo(document.body);
       } catch (error) {
         console.error(error);
-        setStatus('Save failed: ' + error.message, true);
+        setStatus('Could not save: ' + error.message, true);
+      }
+    }
+
+    function renderTask(task, level) {
+      const wrapper = document.createElement('div');
+      wrapper.style.marginLeft = `${level * 22}px`;
+
+      const row = document.createElement('div');
+      row.className = 'task';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = task.completed;
+      checkbox.title = 'Mark complete';
+
+      const name = document.createElement('input');
+      name.type = 'text';
+      name.value = task.text;
+      name.className = 'task-name';
+
+      if (task.completed) {
+        name.classList.add('completed');
+      }
+
+      const subtaskButton = document.createElement('button');
+      subtaskButton.textContent = '+ Subtask';
+      subtaskButton.className = 'subtask-button';
+
+      const deleteButton = document.createElement('button');
+      deleteButton.textContent = '×';
+      deleteButton.className = 'delete-button';
+      deleteButton.title = 'Delete task and subtasks';
+
+      checkbox.addEventListener('change', async () => {
+        task.completed = checkbox.checked;
+        name.classList.toggle('completed', task.completed);
+        await save();
+      });
+
+      name.addEventListener('change', async () => {
+        const newText = name.value.trim();
+
+        if (newText.length === 0) {
+          name.value = task.text;
+          return;
+        }
+
+        task.text = newText;
+        await save();
+      });
+
+      name.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          name.blur();
+        }
+      });
+
+      subtaskButton.addEventListener('click', async () => {
+        data.tasks.push(createTask(task.id));
+        render();
+        await save();
+
+        const newTask = document.querySelector(
+          `[data-task-id="${data.tasks[data.tasks.length - 1].id}"]`
+        );
+
+        if (newTask) {
+          newTask.focus();
+          newTask.select();
+        }
+      });
+
+      deleteButton.addEventListener('click', async () => {
+        const ids = descendantIds(task.id);
+
+        data.tasks = data.tasks.filter(
+          currentTask => !ids.has(currentTask.id)
+        );
+
+        render();
+        await save();
+      });
+
+      row.appendChild(checkbox);
+      row.appendChild(name);
+      row.appendChild(subtaskButton);
+      row.appendChild(deleteButton);
+
+      wrapper.appendChild(row);
+
+      for (const child of childrenOf(task.id)) {
+        wrapper.appendChild(renderTask(child, level + 1));
+      }
+
+      return wrapper;
+    }
+
+    function render() {
+      tasksElement.replaceChildren();
+
+      for (const task of childrenOf(null)) {
+        const element = renderTask(task, 0);
+        tasksElement.appendChild(element);
+      }
+
+      for (const input of tasksElement.querySelectorAll('.task-name')) {
+        const task = data.tasks.find(
+          currentTask => currentTask.text === input.value
+        );
+
+        if (task) {
+          input.dataset.taskId = task.id;
+        }
       }
     }
 
     async function start() {
       try {
-        if (!window.TrelloPowerUp) {
-          throw new Error('Trello Power-Up library did not load.');
-        }
+        data = await t.get(
+          'card',
+          'private',
+          'nested-tasks'
+        ) || {
+          version: 1,
+          tasks: []
+        };
 
-        t = window.TrelloPowerUp.iframe();
-
-        tasks = await t.get('card', 'private', 'nested-tasks') || [];
-
-        drawTasks();
-        setStatus('Ready. Tasks are saved on this Trello card.');
+        render();
+        setStatus('Ready. Click a task name to edit it.');
 
         addButton.addEventListener('click', async () => {
-          tasks.push({
-            id: String(Date.now()),
-            text: 'New task',
-            done: false
-          });
+          const task = createTask();
+          data.tasks.push(task);
 
-          await saveTasks();
+          render();
+          await save();
+
+          const inputs = tasksElement.querySelectorAll('.task-name');
+          const newestInput = inputs[inputs.length - 1];
+
+          if (newestInput) {
+            newestInput.focus();
+            newestInput.select();
+          }
         });
 
         await t.sizeTo(document.body);
