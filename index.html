@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Nested Tasks</title>
+  <title>Checklist</title>
 </head>
 
 <body>
@@ -44,12 +44,12 @@
     window.TrelloPowerUp.initialize({
       'card-buttons': function (t) {
         return [{
-          text: 'Nested Tasks',
+          text: 'Checklist',
           icon: ICON_URL,
 
           callback: function () {
             return t.popup({
-              title: 'Nested Tasks',
+              title: 'Checklist',
               url: TASKS_URL,
               height: 560
             });
@@ -83,7 +83,7 @@
 
       'card-back-section': function (t) {
         return {
-          title: 'Nested Tasks',
+          title: 'Checklist',
           icon: ICON_URL,
 
           content: {
