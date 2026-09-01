@@ -17,7 +17,7 @@
 
     const STORAGE_KEY = 'nested-tasks';
 
-    function getMainTaskProgress(data) {
+    function getTaskData(data) {
       const tasks =
         data &&
         Array.isArray(data.tasks)
@@ -28,34 +28,19 @@
         task => task.parentId === null
       );
 
-      const total = mainTasks.length;
+      const completedMainTasks = mainTasks.filter(
+        task => task.completed
+      ).length;
 
-      const completed = mainTasks.filter(
+      const completedAllTasks = tasks.filter(
         task => task.completed
       ).length;
 
       return {
-        total,
-        completed
-      };
-    }
-
-    function getAllTaskProgress(data) {
-      const tasks =
-        data &&
-        Array.isArray(data.tasks)
-          ? data.tasks
-          : [];
-
-      const total = tasks.length;
-
-      const completed = tasks.filter(
-        task => task.completed
-      ).length;
-
-      return {
-        total,
-        completed
+        mainTotal: mainTasks.length,
+        mainCompleted: completedMainTasks,
+        total: tasks.length,
+        completed: completedAllTasks
       };
     }
 
@@ -81,25 +66,31 @@
           'private',
           STORAGE_KEY
         ).then(function (data) {
-          const mainProgress = getMainTaskProgress(data);
-          const allProgress = getAllTaskProgress(data);
+          const progress = getTaskData(data);
 
-          if (allProgress.total === 0) {
+          if (progress.total === 0) {
             return [];
           }
 
-          const allComplete =
-            allProgress.completed === allProgress.total;
+          const allTasksComplete =
+            progress.completed === progress.total;
 
           return [{
             icon: ICON_URL,
-            text: `${mainProgress.completed}/${mainProgress.total}`,
-            color: allComplete ? 'green' : 'blue',
+
+            text:
+              `${progress.mainCompleted}/${progress.mainTotal}`,
+
+            color:
+              allTasksComplete
+                ? 'green'
+                : 'blue',
+
             refresh: 5
           }];
         }).catch(function (error) {
           console.error(
-            'Could not load checklist badge:',
+            'Could not load Checklist badge:',
             error
           );
 
