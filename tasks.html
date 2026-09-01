@@ -10,6 +10,7 @@
 
       --background: #ffffff;
       --surface-hover: #f4f5f7;
+      --surface-dragging: #e9f2ff;
       --border: #dfe1e6;
       --text: #172b4d;
       --muted: #5e6c84;
@@ -116,8 +117,8 @@
 
     .task-row {
       display: grid;
-      grid-template-columns: 18px minmax(0, 1fr) auto;
-      gap: 6px;
+      grid-template-columns: 14px 18px minmax(0, 1fr) auto;
+      gap: 5px;
       align-items: start;
       min-width: 0;
       min-height: 30px;
@@ -127,6 +128,45 @@
 
     .task-row:hover {
       background: var(--surface-hover);
+    }
+
+    .task-wrapper.dragging .task-row {
+      opacity: 0.45;
+      background: var(--surface-dragging);
+    }
+
+    .task-wrapper.drag-over-before .task-row {
+      box-shadow: inset 0 2px 0 var(--primary);
+    }
+
+    .task-wrapper.drag-over-after .task-row {
+      box-shadow: inset 0 -2px 0 var(--primary);
+    }
+
+    .drag-handle {
+      width: 14px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 3px;
+      color: var(--muted);
+      background: transparent;
+      cursor: grab;
+      font-size: 16px;
+      line-height: 22px;
+      text-align: center;
+      opacity: 0;
+      user-select: none;
+    }
+
+    .task-row:hover .drag-handle,
+    .task-row:focus-within .drag-handle,
+    .drag-handle:focus {
+      opacity: 1;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
     }
 
     .task-checkbox {
@@ -251,6 +291,7 @@
         margin-left: 0 !important;
       }
 
+      .drag-handle,
       .task-actions {
         opacity: 1;
       }
@@ -266,6 +307,7 @@
 
         --background: #1d2125;
         --surface-hover: #22272b;
+        --surface-dragging: #1c2b41;
         --border: #454f59;
         --text: #b6c2cf;
         --muted: #9fadbc;
@@ -327,6 +369,8 @@
       checklistName: 'Checklist',
       tasks: []
     };
+
+    let draggedTaskId = null;
 
     function createId() {
       if (window.crypto && crypto.randomUUID) {
@@ -437,6 +481,102 @@
       }
     }
 
+    function clearDragIndicators() {
+      document.querySelectorAll(
+        '.drag-over-before, .drag-over-after'
+      ).forEach(element => {
+        element.classList.remove(
+          'drag-over-before',
+          'drag-over-after'
+        );
+      });
+    }
+
+    function reorderSiblingTasks(draggedId, targetId, placeAfter) {
+      const draggedTask = data.tasks.find(
+        task => task.id === draggedId
+      );
+
+      const targetTask = data.tasks.find(
+        task => task.id === targetId
+      );
+
+      if (
+        !draggedTask ||
+        !targetTask ||
+        draggedTask.id === targetTask.id ||
+        draggedTask.parentId !== targetTask.parentId
+      ) {
+        return false;
+      }
+
+      const parentId = draggedTask.parentId;
+
+      const siblings = data.tasks.filter(
+        task => task.parentId === parentId
+      );
+
+      const draggedIndex = siblings.findIndex(
+        task => task.id === draggedId
+      );
+
+      const targetIndex = siblings.findIndex(
+        task => task.id === targetId
+      );
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+        return false;
+      }
+
+      siblings.splice(draggedIndex, 1);
+
+      let insertIndex = siblings.findIndex(
+        task => task.id === targetId
+      );
+
+      if (placeAfter) {
+        insertIndex += 1;
+      }
+
+      siblings.splice(insertIndex, 0, draggedTask);
+
+      const siblingIds = new Set(
+        data.tasks
+          .filter(task => task.parentId === parentId)
+          .map(task => task.id)
+      );
+
+      const orderedSiblingIds = siblings.map(task => task.id);
+
+      const nonSiblingTasks = data.tasks.filter(
+        task => !siblingIds.has(task.id)
+      );
+
+      const firstSiblingIndex = data.tasks.findIndex(
+        task => task.parentId === parentId
+      );
+
+      const before = data.tasks
+        .slice(0, firstSiblingIndex)
+        .filter(task => !siblingIds.has(task.id));
+
+      const after = data.tasks
+        .slice(firstSiblingIndex)
+        .filter(task => !siblingIds.has(task.id));
+
+      const orderedSiblings = orderedSiblingIds.map(
+        id => data.tasks.find(task => task.id === id)
+      );
+
+      data.tasks = [
+        ...before,
+        ...orderedSiblings,
+        ...after
+      ];
+
+      return true;
+    }
+
     function createTaskElement(task, level) {
       const wrapper = document.createElement('div');
       wrapper.className = 'task-wrapper';
@@ -448,6 +588,13 @@
 
       const row = document.createElement('div');
       row.className = 'task-row';
+
+      const dragHandle = document.createElement('button');
+      dragHandle.type = 'button';
+      dragHandle.className = 'drag-handle';
+      dragHandle.textContent = '⠿';
+      dragHandle.title = 'Drag to reorder';
+      dragHandle.setAttribute('aria-label', 'Drag to reorder');
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -487,6 +634,95 @@
       deleteButton.setAttribute('aria-label', 'Delete task');
 
       resizeTextArea(nameInput);
+
+      dragHandle.addEventListener('pointerdown', () => {
+        wrapper.draggable = true;
+      });
+
+      dragHandle.addEventListener('pointerup', () => {
+        wrapper.draggable = false;
+      });
+
+      wrapper.addEventListener('dragstart', event => {
+        if (!wrapper.draggable) {
+          event.preventDefault();
+          return;
+        }
+
+        draggedTaskId = task.id;
+
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', task.id);
+
+        requestAnimationFrame(() => {
+          wrapper.classList.add('dragging');
+        });
+      });
+
+      wrapper.addEventListener('dragend', () => {
+        wrapper.classList.remove('dragging');
+        wrapper.draggable = false;
+        draggedTaskId = null;
+        clearDragIndicators();
+      });
+
+      wrapper.addEventListener('dragover', event => {
+        if (!draggedTaskId || draggedTaskId === task.id) {
+          return;
+        }
+
+        const draggedTask = data.tasks.find(
+          currentTask => currentTask.id === draggedTaskId
+        );
+
+        if (!draggedTask || draggedTask.parentId !== task.parentId) {
+          return;
+        }
+
+        event.preventDefault();
+
+        const bounds = wrapper.getBoundingClientRect();
+        const placeAfter =
+          event.clientY > bounds.top + bounds.height / 2;
+
+        clearDragIndicators();
+
+        wrapper.classList.add(
+          placeAfter
+            ? 'drag-over-after'
+            : 'drag-over-before'
+        );
+      });
+
+      wrapper.addEventListener('dragleave', event => {
+        if (!wrapper.contains(event.relatedTarget)) {
+          wrapper.classList.remove(
+            'drag-over-before',
+            'drag-over-after'
+          );
+        }
+      });
+
+      wrapper.addEventListener('drop', async event => {
+        event.preventDefault();
+
+        const placeAfter = wrapper.classList.contains(
+          'drag-over-after'
+        );
+
+        const changed = reorderSiblingTasks(
+          draggedTaskId,
+          task.id,
+          placeAfter
+        );
+
+        clearDragIndicators();
+
+        if (changed) {
+          renderTasks();
+          await saveData();
+        }
+      });
 
       nameInput.addEventListener('input', () => {
         resizeTextArea(nameInput);
@@ -555,8 +791,15 @@
       content.appendChild(nameInput);
       content.appendChild(actions);
 
+      row.appendChild(dragHandle);
       row.appendChild(checkbox);
       row.appendChild(content);
+      row.appendChild(actions.cloneNode(false));
+
+      row.lastChild.remove();
+
+      row.appendChild(actions);
+
       wrapper.appendChild(row);
 
       for (const child of getChildren(task.id)) {
