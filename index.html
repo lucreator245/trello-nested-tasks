@@ -63,19 +63,12 @@
         .trimEnd() + '…';
     }
 
-    function createTaskPreviewBadge(task) {
-      return {
-        text: `${task.completed ? '☑' : '☐'} ${shortenText(
-          task.text,
-          MAX_PREVIEW_NAME_LENGTH
-        )}`,
-
-        color: task.completed
-          ? 'green'
-          : 'blue',
-
-        refresh: 5
-      };
+    function openChecklist(t) {
+      return t.popup({
+        title: 'Checklist',
+        url: TASKS_URL,
+        height: 560
+      });
     }
 
     window.TrelloPowerUp.initialize({
@@ -85,11 +78,7 @@
           icon: ICON_URL,
 
           callback: function () {
-            return t.popup({
-              title: 'Checklist',
-              url: TASKS_URL,
-              height: 560
-            });
+            return openChecklist(t);
           }
         }];
       },
@@ -118,12 +107,49 @@
                 ? 'green'
                 : 'blue',
 
-            refresh: 5
+            refresh: 5,
+
+            callback: function () {
+              return openChecklist(t);
+            }
           };
 
           const previewBadges = checklist.mainTasks
             .slice(0, MAX_PREVIEW_TASKS)
-            .map(createTaskPreviewBadge);
+            .map(function (task, index) {
+              const prefix = task.completed
+                ? '☑'
+                : '☐';
+
+              const taskName = shortenText(
+                task.text,
+                MAX_PREVIEW_NAME_LENGTH
+              );
+
+              return {
+                text:
+                  `${prefix} ${taskName}`,
+
+                color:
+                  task.completed
+                    ? 'green'
+                    : 'blue',
+
+                refresh: 5,
+
+                callback: function () {
+                  return openChecklist(t);
+                }
+              };
+            });
+
+          /*
+            The non-breaking spaces make the progress badge
+            wider, increasing the chance that the task badges
+            wrap onto a later line on narrow cards.
+          */
+          progressBadge.text =
+            `☑ ${checklist.mainCompleted}/${checklist.mainTotal}\u00A0\u00A0\u00A0\u00A0`;
 
           return [
             progressBadge,
@@ -131,7 +157,7 @@
           ];
         }).catch(function (error) {
           console.error(
-            'Could not load Checklist preview badges:',
+            'Could not load Checklist badges:',
             error
           );
 
