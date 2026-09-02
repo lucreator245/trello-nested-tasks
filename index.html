@@ -15,12 +15,12 @@
     const ICON_URL =
       'https://lucreator245.github.io/trello-nested-tasks/icon.svg';
 
-    const BADGE_ICON_URL =
-      'https://lucreator245.github.io/trello-nested-tasks/checklist-badge.svg';
-
     const STORAGE_KEY = 'nested-tasks';
 
-    function getTaskData(data) {
+    const MAX_PREVIEW_TASKS = 5;
+    const MAX_PREVIEW_NAME_LENGTH = 26;
+
+    function getChecklistData(data) {
       const tasks =
         data &&
         Array.isArray(data.tasks)
@@ -40,10 +40,41 @@
       ).length;
 
       return {
+        tasks,
+        mainTasks,
         mainTotal: mainTasks.length,
         mainCompleted: completedMainTasks,
         total: tasks.length,
         completed: completedAllTasks
+      };
+    }
+
+    function shortenText(text, maxLength) {
+      const cleanText = String(text || '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (cleanText.length <= maxLength) {
+        return cleanText;
+      }
+
+      return cleanText
+        .slice(0, maxLength - 1)
+        .trimEnd() + '…';
+    }
+
+    function createTaskPreviewBadge(task) {
+      return {
+        text: `${task.completed ? '☑' : '☐'} ${shortenText(
+          task.text,
+          MAX_PREVIEW_NAME_LENGTH
+        )}`,
+
+        color: task.completed
+          ? 'green'
+          : 'blue',
+
+        refresh: 5
       };
     }
 
@@ -69,20 +100,18 @@
           'private',
           STORAGE_KEY
         ).then(function (data) {
-          const progress = getTaskData(data);
+          const checklist = getChecklistData(data);
 
-          if (progress.total === 0) {
+          if (checklist.total === 0) {
             return [];
           }
 
           const allTasksComplete =
-            progress.completed === progress.total;
+            checklist.completed === checklist.total;
 
-          return [{
-            icon: BADGE_ICON_URL,
-
+          const progressBadge = {
             text:
-              `${progress.mainCompleted}/${progress.mainTotal}`,
+              `☑ ${checklist.mainCompleted}/${checklist.mainTotal}`,
 
             color:
               allTasksComplete
@@ -90,10 +119,19 @@
                 : 'blue',
 
             refresh: 5
-          }];
+          };
+
+          const previewBadges = checklist.mainTasks
+            .slice(0, MAX_PREVIEW_TASKS)
+            .map(createTaskPreviewBadge);
+
+          return [
+            progressBadge,
+            ...previewBadges
+          ];
         }).catch(function (error) {
           console.error(
-            'Could not load Checklist badge:',
+            'Could not load Checklist preview badges:',
             error
           );
 
