@@ -39,13 +39,21 @@
         task => task.completed
       ).length;
 
+      const totalCompletionPercent =
+        tasks.length === 0
+          ? 0
+          : Math.round(
+              (completedAllTasks / tasks.length) * 100
+            );
+
       return {
         tasks,
         mainTasks,
         mainTotal: mainTasks.length,
         mainCompleted: completedMainTasks,
         total: tasks.length,
-        completed: completedAllTasks
+        completed: completedAllTasks,
+        percent: totalCompletionPercent
       };
     }
 
@@ -63,14 +71,6 @@
         .trimEnd() + '…';
     }
 
-    function openChecklist(t) {
-      return t.popup({
-        title: 'Checklist',
-        url: TASKS_URL,
-        height: 560
-      });
-    }
-
     window.TrelloPowerUp.initialize({
       'card-buttons': function (t) {
         return [{
@@ -78,7 +78,11 @@
           icon: ICON_URL,
 
           callback: function () {
-            return openChecklist(t);
+            return t.popup({
+              title: 'Checklist',
+              url: TASKS_URL,
+              height: 560
+            });
           }
         }];
       },
@@ -100,56 +104,37 @@
 
           const progressBadge = {
             text:
-              `☑ ${checklist.mainCompleted}/${checklist.mainTotal}`,
+              `Tasks Complete: ` +
+              `${checklist.mainCompleted}/${checklist.mainTotal} - ` +
+              `${checklist.percent}%`,
 
             color:
               allTasksComplete
                 ? 'green'
-                : 'blue',
+                : 'gray',
 
-            refresh: 5,
-
-            callback: function () {
-              return openChecklist(t);
-            }
+            refresh: 5
           };
 
           const previewBadges = checklist.mainTasks
             .slice(0, MAX_PREVIEW_TASKS)
-            .map(function (task, index) {
-              const prefix = task.completed
-                ? '☑'
-                : '☐';
-
-              const taskName = shortenText(
-                task.text,
-                MAX_PREVIEW_NAME_LENGTH
-              );
-
+            .map(function (task) {
               return {
                 text:
-                  `${prefix} ${taskName}`,
+                  `${task.completed ? '☑' : '☐'} ` +
+                  shortenText(
+                    task.text,
+                    MAX_PREVIEW_NAME_LENGTH
+                  ),
 
                 color:
                   task.completed
                     ? 'green'
-                    : 'blue',
+                    : 'gray',
 
-                refresh: 5,
-
-                callback: function () {
-                  return openChecklist(t);
-                }
+                refresh: 5
               };
             });
-
-          /*
-            The non-breaking spaces make the progress badge
-            wider, increasing the chance that the task badges
-            wrap onto a later line on narrow cards.
-          */
-          progressBadge.text =
-            `☑ ${checklist.mainCompleted}/${checklist.mainTotal}\u00A0\u00A0\u00A0\u00A0`;
 
           return [
             progressBadge,
@@ -157,7 +142,7 @@
           ];
         }).catch(function (error) {
           console.error(
-            'Could not load Checklist badges:',
+            'Could not load Checklist preview badges:',
             error
           );
 
